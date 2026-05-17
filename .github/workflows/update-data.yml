@@ -1,24 +1,22 @@
 name: Update stock data
 
-# 매일(평일) 시세를 받아 data.json 을 갱신한다.
 on:
   schedule:
-    # 09:30 UTC = 18:30 KST (KRX 마감 15:30 이후, 데이터 안정화 후)
     - cron: '30 9 * * 1-5'
-  workflow_dispatch: {}   # Actions 탭에서 수동 실행 허용
+  workflow_dispatch: {}
 
 permissions:
-  contents: write          # data.json 커밋/푸시 권한
+  contents: write
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
