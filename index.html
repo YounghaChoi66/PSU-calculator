@@ -151,12 +151,6 @@
   .info p{font-size:11.5px; line-height:1.65; color:var(--soft); margin:10px 0 0;}
   .note{font-size:10.5px; color:var(--soft); line-height:1.6; margin:10px 0 0;}
 
-  .share{display:flex; gap:8px; margin-top:14px;}
-  .share button{flex:1; font-family:inherit; font-size:12px; font-weight:500;
-    padding:11px 0; border:1px solid var(--line-strong); border-radius:2px;
-    background:#fff; color:var(--ink); cursor:pointer;}
-  .share button:hover{border-color:var(--accent);}
-
   .foot{font-size:10px; line-height:1.7; color:var(--soft);
     margin-top:18px; padding-top:14px; border-top:1px solid var(--line);}
   .hidden{display:none;}
@@ -172,7 +166,7 @@
     </div>
     <div class="dday">
       <div class="num mono" id="dday">D-—</div>
-      <div class="lbl">to maturity</div>
+      <div class="lbl" id="ddayBasis">— 기준</div>
     </div>
   </div>
 
@@ -320,12 +314,6 @@
     </ul>
     <p>예시: 기준주가 약 85,000원 기준, 3년 후 주가가 2배(약 17만원)가 되면
       과장~부장급은 약정 300주의 2배인 600주를 받아 약 1억 200만원에 해당합니다.</p>
-  </div>
-
-  <!-- 공유 -->
-  <div class="share">
-    <button id="copyBtn">링크 복사</button>
-    <button id="shareBtn">공유하기</button>
   </div>
 
   <p class="foot">
@@ -514,6 +502,11 @@
 
     var days = Math.ceil((new Date(PSU.maturityDate+"T00:00:00+09:00").getTime() - Date.now())/86400000);
     $("dday").textContent = "D-" + (days>0?days:0);
+    var now = new Date();
+    $("ddayBasis").textContent =
+      now.getFullYear() + "." +
+      ("0"+(now.getMonth()+1)).slice(-2) + "." +
+      ("0"+now.getDate()).slice(-2) + " 기준";
 
     var track = $("gaugeTrack");
     PSU.tiers.forEach(function(t){
@@ -605,24 +598,6 @@
     $("infoToggle").addEventListener("click", function(){
       var open = $("infoCard").classList.toggle("hidden");
       this.querySelector(".ar").textContent = open ? "[ + ]" : "[ − ]";
-    });
-    $("copyBtn").addEventListener("click", function(){
-      var btn = this;
-      if (navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(location.href).then(function(){
-          btn.textContent = "복사됨 ✓";
-          setTimeout(function(){ btn.textContent = "링크 복사"; }, 1500);
-        });
-      } else { prompt("아래 주소를 복사하세요", location.href); }
-    });
-    $("shareBtn").addEventListener("click", function(){
-      var btn = this;
-      if (navigator.share){
-        navigator.share({ title:"삼성전자 PSU 보상 계산기", url:location.href }).catch(function(){});
-      } else {
-        btn.textContent = "공유 미지원";
-        setTimeout(function(){ btn.textContent = "공유하기"; }, 1500);
-      }
     });
   }
 
