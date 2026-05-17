@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>삼성전자 PSU 보상 계산기</title>
+<meta name="description" content="삼성전자 PSU 직급별 예상 보상 주식 수와 세전·세후 수령액을 확인하는 비공식 참고용 계산기.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --paper:#f3efe6; --surface:#fbfaf5; --ink:#1c1b18; --soft:#6f6b62;
+    --line:#ddd7c8; --line-strong:#c9c2b0; --accent:#16307a;
+  }
+  *{box-sizing:border-box;}
+  body{font-family:'IBM Plex Sans KR',sans-serif; color:var(--ink);
+    background:var(--paper); margin:0; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:680px; margin:0 auto; padding:28px 22px 40px;}
+  .mono{font-family:'IBM Plex Mono',monospace; font-feature-settings:"tnum";}
+
+  .hdr{display:flex; justify-content:space-between; align-items:flex-end;
+    border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:4px;}
+  .hdr h1{font-size:19px; font-weight:600; letter-spacing:-.01em; margin:0; line-height:1.3;}
+  .hdr .sub{font-size:11px; color:var(--soft); margin-top:4px; letter-spacing:.02em;}
+  .dday{text-align:right; flex-shrink:0; padding-left:14px;}
+  .dday .num{font-size:26px; font-weight:600; line-height:1; color:var(--accent);}
+  .dday .lbl{font-size:9.5px; color:var(--soft); letter-spacing:.06em;
+    text-transform:uppercase; margin-top:3px;}
+
+  .facts{display:flex; border:1px solid var(--line); border-radius:3px;
+    overflow:hidden; margin-top:14px;}
+  .facts .f{flex:1; padding:12px 14px; background:var(--surface);}
+  .facts .f + .f{border-left:1px solid var(--line);}
+  .facts .f .k{font-size:10px; color:var(--soft); margin-bottom:5px;
+    display:flex; align-items:center; gap:6px;}
+  .facts .f .v{font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:600;}
+  .lock{font-size:8px; font-weight:600; letter-spacing:.06em; color:var(--soft);
+    border:1px solid var(--line-strong); border-radius:2px; padding:1px 4px;}
+
+  .card{background:var(--surface); border:1px solid var(--line);
+    border-radius:3px; padding:18px 18px 20px; margin-top:14px;}
+  .card-t{font-size:10px; font-weight:600; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--soft); margin:0 0 14px;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .badge{font-size:8px; font-weight:600; padding:2px 6px;
+    border-radius:2px; text-transform:none; letter-spacing:.02em;}
+  .badge.input{background:var(--accent); color:#fff;}
+  .badge.data{background:#e7e1d0; color:var(--soft);}
+  .badge.warn{background:#c0492e; color:#fff;}
+
+  .field{margin-bottom:16px;} .field:last-child{margin-bottom:0;}
+  .field label{display:block; font-size:12px; font-weight:500; margin-bottom:7px;}
+  .field .hint{font-size:10.5px; color:var(--soft); font-weight:400;}
+
+  .seg{display:grid; grid-template-columns:repeat(4,1fr); gap:6px;}
+  .seg button{font-family:inherit; font-size:13px; font-weight:500; padding:9px 0;
+    border:1px solid var(--line-strong); border-radius:2px; background:#fff;
+    color:var(--soft); cursor:pointer; transition:all .12s;}
+  .seg button:hover{border-color:var(--accent);}
+  .seg button.on{background:var(--ink); color:#fff; border-color:var(--ink);}
+
+  input[type=range]{-webkit-appearance:none; appearance:none; width:100%; height:3px;
+    background:var(--line-strong); border-radius:3px; margin:10px 0 4px;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:18px; height:18px;
+    border-radius:50%; background:var(--accent); cursor:pointer; border:3px solid #fff;
+    box-shadow:0 0 0 1px var(--line-strong);}
+  input[type=range]::-moz-range-thumb{width:18px; height:18px; border-radius:50%;
+    background:var(--accent); cursor:pointer; border:3px solid #fff;}
+  .range-ends{display:flex; justify-content:space-between; font-size:10px; color:var(--soft);}
+
+  .scn-head{display:flex; align-items:baseline; gap:10px; margin-bottom:2px;}
+  .scn-head .big{font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600;}
+  .scn-head .delta{font-size:12px; font-weight:500;}
+  .scn-ref{font-size:10.5px; color:var(--soft); margin-top:6px;}
+  .scn-ref b{font-family:'IBM Plex Mono',monospace; color:var(--ink); font-weight:600;}
+
+  .appr-row{display:flex; align-items:baseline; gap:12px; margin-bottom:4px;}
+  .appr-row .v{font-family:'IBM Plex Mono',monospace; font-size:34px; font-weight:600; line-height:1;}
+  .appr-row .k{font-size:11px; color:var(--soft);}
+  .tier-pill{display:inline-block; font-size:11px; font-weight:600;
+    padding:3px 9px; border-radius:2px; color:#fff;}
+  .formula{font-size:11px; color:var(--soft); margin-top:8px;}
+  .formula b{font-family:'IBM Plex Mono',monospace; color:var(--ink); font-weight:600;}
+
+  .gauge{margin:16px 0 4px;}
+  .gauge-track{position:relative; height:9px; display:flex; gap:2px;}
+  .gauge-track .gs{height:100%; border-radius:1px; opacity:.30;}
+  .gauge-track .gs.act{opacity:1;}
+  .gauge-mark{position:absolute; top:-5px; width:2px; height:19px; background:var(--ink);}
+  .gauge-mark::after{content:''; position:absolute; top:-4px; left:-3px;
+    width:8px; height:8px; background:var(--ink); border-radius:50%;}
+  .gauge-scale{display:flex; justify-content:space-between;
+    font-size:9px; color:var(--soft); margin-top:7px;}
+
+  .out-grid{display:grid; grid-template-columns:1fr 1fr; gap:1px;
+    background:var(--line); border:1px solid var(--line);
+    border-radius:2px; overflow:hidden; margin-top:16px;}
+  .out-cell{background:var(--surface); padding:13px 14px;}
+  .out-cell .k{font-size:10.5px; color:var(--soft); margin-bottom:5px;}
+  .out-cell .v{font-family:'IBM Plex Mono',monospace; font-size:18px; font-weight:600;}
+  .out-cell .v small{font-size:11px; font-weight:500; color:var(--soft);}
+  .out-cell.wide{grid-column:1 / -1;}
+  .out-cell.hl{background:var(--ink);}
+  .out-cell.hl .k{color:#b9b6ad;} .out-cell.hl .v{color:#fff;}
+
+  .tax-grid{display:grid; grid-template-columns:1fr 1fr 1fr; gap:1px;
+    background:var(--line); border:1px solid var(--line);
+    border-radius:2px; overflow:hidden; margin-top:14px;}
+
+  select.tax-sel{width:100%; font-family:inherit; font-size:13px; padding:9px 11px;
+    border:1px solid var(--line-strong); border-radius:2px; background:#fff; color:var(--ink);}
+  select.tax-sel:focus{outline:none; border-color:var(--accent);}
+
+  /* 차트 */
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;}
+  .chip{display:flex; align-items:center; gap:6px; font-size:11px;
+    background:#fff; border:1px solid var(--line); border-radius:3px; padding:6px 9px;}
+  .chip .dot{width:9px; height:9px; border-radius:2px; flex-shrink:0;}
+  .chip .cv{font-family:'IBM Plex Mono',monospace; font-weight:600;}
+  .chip .ck{color:var(--soft);}
+  #chartBox{width:100%;}
+  #chartBox svg{display:block; width:100%; height:auto;}
+  .chart-empty{font-size:11.5px; color:var(--soft); padding:30px 0; text-align:center;}
+  .chart-loading{font-size:11.5px; color:var(--soft); padding:30px 0; text-align:center;}
+
+  .base-calc{margin-top:16px; padding-top:14px; border-top:1px solid var(--line);}
+  .base-calc .bt{font-size:10px; font-weight:600; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--soft); margin-bottom:10px;}
+  .data-row{display:flex; justify-content:space-between; align-items:baseline;
+    padding:8px 0; border-bottom:1px solid var(--line); font-size:12px;}
+  .data-row:last-child{border-bottom:none;}
+  .data-row .dk{color:var(--soft);}
+  .data-row .dv{font-family:'IBM Plex Mono',monospace; font-weight:600;}
+  .data-row.calc .dk{color:var(--ink); font-weight:600;}
+  .data-row.calc .dv{color:var(--accent);}
+
+  .disc{display:flex; justify-content:space-between; align-items:center; width:100%;
+    background:none; border:none; cursor:pointer; font-family:inherit; font-size:11px;
+    font-weight:600; color:var(--soft); letter-spacing:.04em; padding:14px 2px 0; margin-top:4px;}
+  .disc:hover{color:var(--ink);}
+  .disc .ar{font-family:'IBM Plex Mono',monospace;}
+
+  .tier-table{width:100%; border-collapse:collapse; margin-top:4px;}
+  .tier-table td{font-size:11.5px; padding:6px 4px; border-bottom:1px solid var(--line);}
+  .tier-table tr:last-child td{border-bottom:none;}
+  .tier-table .tm{font-family:'IBM Plex Mono',monospace; font-weight:600; text-align:right;}
+  .tier-table .dot{width:8px; height:8px; border-radius:2px; display:inline-block;}
+
+  .info ul{margin:0; padding-left:16px;}
+  .info li{font-size:11.5px; line-height:1.7; color:var(--soft);}
+  .info p{font-size:11.5px; line-height:1.65; color:var(--soft); margin:10px 0 0;}
+  .note{font-size:10.5px; color:var(--soft); line-height:1.6; margin:10px 0 0;}
+
+  .share{display:flex; gap:8px; margin-top:14px;}
+  .share button{flex:1; font-family:inherit; font-size:12px; font-weight:500;
+    padding:11px 0; border:1px solid var(--line-strong); border-radius:2px;
+    background:#fff; color:var(--ink); cursor:pointer;}
+  .share button:hover{border-color:var(--accent);}
+
+  .foot{font-size:10px; line-height:1.7; color:var(--soft);
+    margin-top:18px; padding-top:14px; border-top:1px solid var(--line);}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hdr">
+    <div>
+      <h1>삼성전자 PSU 보상 계산기</h1>
+      <div class="sub">3년 약정 · 주가 상승률 연동 주식 보상</div>
+    </div>
+    <div class="dday">
+      <div class="num mono" id="dday">D-—</div>
+      <div class="lbl">to maturity</div>
+    </div>
+  </div>
+
+  <!-- ① 고정 상수 -->
+  <div class="facts">
+    <div class="f">
+      <div class="k">최초 기준가 <span class="lock">고정</span></div>
+      <div class="v" id="factBase">—</div>
+    </div>
+    <div class="f">
+      <div class="k">약정 종료일 <span class="lock">고정</span></div>
+      <div class="v" id="factMaturity">—</div>
+    </div>
+  </div>
+
+  <!-- ③ 사용자 입력 -->
+  <div class="card">
+    <p class="card-t">입력 <span class="badge input">사용자 입력</span></p>
+
+    <div class="field">
+      <label>직급 <span class="hint">· CL1·2 약정 200주 / CL3·4 약정 300주</span></label>
+      <div class="seg" id="clSeg">
+        <button data-cl="CL1">CL1</button>
+        <button data-cl="CL2">CL2</button>
+        <button data-cl="CL3" class="on">CL3</button>
+        <button data-cl="CL4">CL4</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>평가 주가 (시나리오) <span class="hint">· 만기 시점 가정 기준주가</span></label>
+      <div class="scn-head">
+        <span class="big" id="scnPrice">—</span>
+        <span class="delta" id="scnDelta">—</span>
+      </div>
+      <input type="range" id="scnRange" min="50000" max="600000" step="100" value="85385">
+      <div class="range-ends"><span>50,000원</span><span>600,000원</span></div>
+      <div class="scn-ref" id="scnRef">—</div>
+    </div>
+  </div>
+
+  <!-- 결과 -->
+  <div class="card">
+    <p class="card-t">예상 보상</p>
+    <div class="appr-row">
+      <span class="v" id="apprVal">—</span>
+      <span class="k">최초 기준가 대비 상승률</span>
+    </div>
+    <span class="tier-pill" id="tierPill">—</span>
+    <div class="formula" id="formula">—</div>
+
+    <div class="gauge">
+      <div class="gauge-track" id="gaugeTrack"></div>
+      <div class="gauge-scale">
+        <span>0%</span><span>20%</span><span>40%</span><span>60%</span>
+        <span>80%</span><span>100%</span><span>150%+</span>
+      </div>
+    </div>
+
+    <div class="out-grid">
+      <div class="out-cell">
+        <div class="k">지급 주식 수</div>
+        <div class="v mono"><span id="shares">0</span><small> 주</small></div>
+      </div>
+      <div class="out-cell">
+        <div class="k">약정 주식 수 (<span id="clLabel">CL3</span>)</div>
+        <div class="v mono"><span id="grantShares">300</span><small> 주</small></div>
+      </div>
+      <div class="out-cell hl wide">
+        <div class="k">예상 수령액 (세전) · 지급 주식 수 × 평가 주가</div>
+        <div class="v mono" id="gross">0원</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 세후 -->
+  <div class="card">
+    <p class="card-t">세후 체감액 <span class="badge input">사용자 입력</span></p>
+    <div class="field">
+      <label>한계세율 <span class="hint">· 과세표준 마지막 구간 세율</span></label>
+      <select class="tax-sel" id="taxSel"></select>
+    </div>
+    <div class="tax-grid">
+      <div class="out-cell">
+        <div class="k">실효세율 (지방세 10% 포함)</div>
+        <div class="v mono" id="effRate">—</div>
+      </div>
+      <div class="out-cell">
+        <div class="k">예상 세금</div>
+        <div class="v mono" id="taxAmt">0원</div>
+      </div>
+      <div class="out-cell hl">
+        <div class="k">세후 체감액</div>
+        <div class="v mono" id="net">0원</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3년 분할 -->
+  <div class="card">
+    <p class="card-t">3년 분할 수령 요약 · 2028 ~ 2030</p>
+    <div class="out-grid">
+      <div class="out-cell"><div class="k">연평균 (세전)</div><div class="v mono" id="annGross">0원</div></div>
+      <div class="out-cell"><div class="k">연평균 (세후)</div><div class="v mono" id="annNet">0원</div></div>
+      <div class="out-cell"><div class="k">3년 합계 (세전)</div><div class="v mono" id="totGross">0원</div></div>
+      <div class="out-cell hl"><div class="k">3년 합계 (세후)</div><div class="v mono" id="totNet">0원</div></div>
+    </div>
+  </div>
+
+  <!-- ② 주가 데이터 + 차트 -->
+  <div class="card">
+    <p class="card-t">
+      최근 3개월 주가 추이
+      <span class="badge data" id="dataBadge">시장 데이터</span>
+      <span class="badge warn hidden" id="sampleBadge">샘플 데이터 · 실제 시세 아님</span>
+    </p>
+    <div class="chips" id="chips"></div>
+    <div id="chartBox"><div class="chart-loading">주가 데이터를 불러오는 중…</div></div>
+
+    <div class="base-calc">
+      <div class="bt">기준주가 산출 · PSU 평가식</div>
+      <div class="data-row"><span class="dk">1주 거래량가중평균 (VWAP)</span><span class="dv" id="bv1w">—</span></div>
+      <div class="data-row"><span class="dk">1개월 거래량가중평균 (VWAP)</span><span class="dv" id="bv1m">—</span></div>
+      <div class="data-row"><span class="dk">2개월 거래량가중평균 (VWAP)</span><span class="dv" id="bv2m">—</span></div>
+      <div class="data-row calc">
+        <span class="dk">기준주가 = (1주 + 1개월 + 2개월 VWAP) ÷ 3</span>
+        <span class="dv" id="bvBase">—</span>
+      </div>
+      <p class="note">PSU 만기 평가는 특정일 주가 급변을 막기 위해 1주·1개월·2개월
+        거래량가중평균을 다시 평균한 기준주가를 사용합니다. 평가 주가 슬라이더는
+        페이지 로드 시 현재 기준주가에 맞춰집니다.</p>
+    </div>
+  </div>
+
+  <!-- 제도 요약 -->
+  <button class="disc" id="infoToggle">PSU 제도 요약 및 유의사항 <span class="ar">[ + ]</span></button>
+  <div class="card info hidden" id="infoCard">
+    <p class="card-t" style="margin-bottom:8px;">상승률별 지급 배수</p>
+    <table class="tier-table" id="tierTable"></table>
+    <ul style="margin-top:12px;">
+      <li>약정 주식: 사원~대리급(CL1·2) 200주, 과장~부장급(CL3·4) 300주</li>
+      <li>2025년 10월 15일 기준주가 대비 2028년 10월 13일 기준주가의 상승률로 배수 확정</li>
+      <li>2028년부터 3년간 균등 분할 지급</li>
+      <li>초과이익성과급(OPI)과는 별도로 지급</li>
+    </ul>
+    <p>예시: 기준주가 약 85,000원 기준, 3년 후 주가가 2배(약 17만원)가 되면
+      과장~부장급은 약정 300주의 2배인 600주를 받아 약 1억 200만원에 해당합니다.</p>
+  </div>
+
+  <!-- 공유 -->
+  <div class="share">
+    <button id="copyBtn">링크 복사</button>
+    <button id="shareBtn">공유하기</button>
+  </div>
+
+  <p class="foot">
+    본 계산기는 공개된 PSU 제도 정보를 바탕으로 한 비공식 참고용 도구입니다.
+    예상 수령액은 [지급 주식 수 × 평가 주가]의 세전 금액이며, 세후 추정은
+    한계세율 + 지방소득세 10%를 적용한 단순 추정치입니다. 실제 지급 주식 수,
+    지급 시점, 과세 방식은 회사 공식 안내 및 세무 신고 결과와 다를 수 있습니다.
+    주가 데이터는 Yahoo Finance 비공식 API 기반이며 지연·오차가 있을 수 있습니다.
+    제도 정보 출처: 서울신문 2025-10-14 보도. 한계세율: 국세청 소득세법 제55조.
+  </p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ===================================================================
+   * ①  PSU  —  제도 고정 상수 (출처: 서울신문 2025-10-14 보도)
+   * =================================================================== */
+  var PSU = {
+    initialBase: 85385,
+    maturityDate: "2028-10-13",
+    splitYears: [2028, 2029, 2030],
+    localTaxRate: 0.10,
+    grantShares: { CL1: 200, CL2: 200, CL3: 300, CL4: 300 },
+    tiers: [
+      { name:"미지급",    cond:"상승률 20% 미만",      min:-Infinity, max:0.2,      mult:0.0, color:"#9a9690" },
+      { name:"0.5배 지급", cond:"20% 이상 ~ 40% 미만",  min:0.2,       max:0.4,      mult:0.5, color:"#c08a2e" },
+      { name:"1배 지급",   cond:"40% 이상 ~ 60% 미만",  min:0.4,       max:0.6,      mult:1.0, color:"#9a9b35" },
+      { name:"1.3배 지급", cond:"60% 이상 ~ 80% 미만",  min:0.6,       max:0.8,      mult:1.3, color:"#5a8a3c" },
+      { name:"1.7배 지급", cond:"80% 이상 ~ 100% 미만", min:0.8,       max:1.0,      mult:1.7, color:"#2f7d5a" },
+      { name:"2배 지급",   cond:"100% 이상",            min:1.0,       max:Infinity, mult:2.0, color:"#16307a" }
+    ]
+  };
+
+  var TAX_BRACKETS = [
+    { rate:0.06, label:"6%  · 과세표준 1,400만원 이하" },
+    { rate:0.15, label:"15% · 1,400만 ~ 5,000만원" },
+    { rate:0.24, label:"24% · 5,000만 ~ 8,800만원" },
+    { rate:0.35, label:"35% · 8,800만 ~ 1.5억원" },
+    { rate:0.38, label:"38% · 1.5억 ~ 3억원" },
+    { rate:0.40, label:"40% · 3억 ~ 5억원" },
+    { rate:0.42, label:"42% · 5억 ~ 10억원" },
+    { rate:0.45, label:"45% · 10억원 초과" }
+  ];
+
+  /* ===================================================================
+   * ②  market  —  data.json 에서 로드되는 시장 데이터
+   *     GitHub Actions(scripts/update_data.py)가 매일 data.json을 갱신.
+   * =================================================================== */
+  var market = null;     // 로드 후 채워짐
+  var basePrice = PSU.initialBase;   // 기준주가 (data 없으면 최초기준가)
+
+  /* ===================================================================
+   * ③  input  —  사용자 입력 변수
+   * =================================================================== */
+  var input = { clGrade:"CL3", marginalRate:0.35, scenarioPrice:PSU.initialBase };
+
+  /* ── 헬퍼 ────────────────────────────────────────────────────────── */
+  var GAUGE_MAX = 1.5;
+  function $(id){ return document.getElementById(id); }
+  function krw(n){ return Math.round(n).toLocaleString("ko-KR") + "원"; }
+  function compact(n){
+    var v = Math.round(n);
+    if (Math.abs(v) >= 1e8){ var e = v/1e8; return e.toFixed(e>=10?1:2) + "억원"; }
+    if (Math.abs(v) >= 1e4) return (v/1e4).toFixed(0) + "만원";
+    return v.toLocaleString("ko-KR") + "원";
+  }
+  function pct(x){ return (x*100).toFixed(1) + "%"; }
+  function tierIndexOf(appr){
+    for (var i=0;i<PSU.tiers.length;i++){
+      if (appr >= PSU.tiers[i].min && appr < PSU.tiers[i].max) return i;
+    }
+    return PSU.tiers.length - 1;
+  }
+
+  /* ── 핵심 계산 ───────────────────────────────────────────────────── */
+  function compute(){
+    var grant        = PSU.grantShares[input.clGrade];
+    var appreciation = (input.scenarioPrice - PSU.initialBase) / PSU.initialBase;
+    var tIdx         = tierIndexOf(appreciation);
+    var mult         = PSU.tiers[tIdx].mult;
+    var shares       = Math.round(grant * mult);
+    var gross        = shares * input.scenarioPrice;
+    var effRate      = input.marginalRate * (1 + PSU.localTaxRate);
+    var tax          = gross * effRate;
+    var net          = gross - tax;
+    return { grant:grant, appreciation:appreciation, tIdx:tIdx, mult:mult,
+      shares:shares, gross:gross, effRate:effRate, tax:tax, net:net,
+      annGross:gross/3, annNet:net/3 };
+  }
+
+  /* ── 차트 (순수 SVG) ─────────────────────────────────────────────── */
+  function renderChart(history, refs){
+    var box = $("chartBox");
+    if (!history || history.length < 2){
+      box.innerHTML = '<div class="chart-empty">주가 데이터를 표시할 수 없습니다.</div>';
+      return;
+    }
+    var W=600,H=240,padL=58,padR=16,padT=14,padB=30;
+    var plotW=W-padL-padR, plotH=H-padT-padB, n=history.length;
+
+    var vals = history.map(function(d){ return d.close; });
+    refs.forEach(function(r){ if (r.value!=null) vals.push(r.value); });
+    var lo=Math.min.apply(null,vals), hi=Math.max.apply(null,vals);
+    var pad=(hi-lo)*0.08 || hi*0.04; lo-=pad; hi+=pad;
+
+    function X(i){ return padL + (n<=1?0:i/(n-1))*plotW; }
+    function Y(v){ return padT + (1-(v-lo)/(hi-lo))*plotH; }
+
+    var s = '<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" '+
+            'font-family="IBM Plex Mono, monospace">';
+    // y 그리드 + 라벨
+    for (var g=0; g<=3; g++){
+      var gv=lo+(hi-lo)*g/3, gy=Y(gv);
+      s+='<line x1="'+padL+'" y1="'+gy+'" x2="'+(W-padR)+'" y2="'+gy+'" '+
+         'stroke="#ddd7c8" stroke-width="1"/>';
+      s+='<text x="'+(padL-8)+'" y="'+(gy+3)+'" font-size="9" fill="#6f6b62" '+
+         'text-anchor="end">'+(gv/10000).toFixed(1)+'만</text>';
+    }
+    // x 날짜 라벨
+    [0, Math.floor((n-1)/3), Math.floor((n-1)*2/3), n-1].forEach(function(i){
+      var d=history[i].date.slice(5).replace("-","/");
+      s+='<text x="'+X(i)+'" y="'+(H-12)+'" font-size="9" fill="#6f6b62" '+
+         'text-anchor="middle">'+d+'</text>';
+    });
+    // 기준선 (현재가/1주/1개월/3개월)
+    refs.forEach(function(r){
+      if (r.value==null) return;
+      var ry=Y(r.value);
+      s+='<line x1="'+padL+'" y1="'+ry+'" x2="'+(W-padR)+'" y2="'+ry+'" '+
+         'stroke="'+r.color+'" stroke-width="1" stroke-dasharray="4 3" opacity="0.85"/>';
+    });
+    // 가격 라인
+    var pts = history.map(function(d,i){ return X(i)+','+Y(d.close); }).join(" ");
+    s+='<polyline points="'+pts+'" fill="none" stroke="#1c1b18" '+
+       'stroke-width="1.8" stroke-linejoin="round"/>';
+    s+='</svg>';
+    box.innerHTML = s;
+  }
+
+  function renderChips(refs){
+    var c=$("chips"); c.innerHTML="";
+    refs.forEach(function(r){
+      var el=document.createElement("div");
+      el.className="chip";
+      el.innerHTML='<span class="dot" style="background:'+r.color+'"></span>'+
+        '<span class="ck">'+r.label+'</span>'+
+        '<span class="cv">'+(r.value!=null?krw(r.value):"—")+'</span>';
+      c.appendChild(el);
+    });
+  }
+
+  /* ── 시장 데이터 반영 ────────────────────────────────────────────── */
+  function applyMarket(){
+    var refs = [
+      { label:"현재가",  value: market ? market.currentPrice : null, color:"#16307a" },
+      { label:"1주",     value: market ? market.vwap1w : null,       color:"#c08a2e" },
+      { label:"1개월",   value: market ? market.vwap1m : null,       color:"#3a7d44" },
+      { label:"3개월",   value: market ? market.vwap3m : null,       color:"#6f6b62" }
+    ];
+    renderChips(refs);
+    renderChart(market ? market.history : null, refs);
+
+    // 기준주가 산출 (PSU 평가식 — 1주 + 1개월 + 2개월)
+    $("bv1w").textContent   = market && market.vwap1w!=null ? krw(market.vwap1w) : "—";
+    $("bv1m").textContent   = market && market.vwap1m!=null ? krw(market.vwap1m) : "—";
+    $("bv2m").textContent   = market && market.vwap2m!=null ? krw(market.vwap2m) : "—";
+    $("bvBase").textContent = market && market.basePrice!=null ? krw(market.basePrice) : "—";
+
+    // 데이터 배지
+    if (market && market.sample){
+      $("sampleBadge").classList.remove("hidden");
+      $("dataBadge").textContent = "기준일 " + (market.asOf||"—");
+    } else if (market){
+      $("dataBadge").textContent = "기준일 " + (market.asOf||"—");
+    } else {
+      $("dataBadge").textContent = "데이터 없음";
+    }
+  }
+
+  /* ── 1회성 초기화 ────────────────────────────────────────────────── */
+  function buildOnce(){
+    $("factBase").textContent     = krw(PSU.initialBase);
+    $("factMaturity").textContent = PSU.maturityDate;
+
+    var days = Math.ceil((new Date(PSU.maturityDate+"T00:00:00+09:00").getTime() - Date.now())/86400000);
+    $("dday").textContent = "D-" + (days>0?days:0);
+
+    var track = $("gaugeTrack");
+    PSU.tiers.forEach(function(t){
+      var span = (Math.min(t.max,GAUGE_MAX) - Math.max(t.min,0)) / GAUGE_MAX;
+      var d = document.createElement("div");
+      d.className = "gs"; d.style.flex = span; d.style.background = t.color;
+      track.appendChild(d);
+    });
+    var mark = document.createElement("div");
+    mark.className = "gauge-mark"; mark.id = "gaugeMark";
+    track.appendChild(mark);
+
+    var sel = $("taxSel");
+    TAX_BRACKETS.forEach(function(b){
+      var o = document.createElement("option");
+      o.value = b.rate; o.textContent = b.label;
+      if (b.rate === input.marginalRate) o.selected = true;
+      sel.appendChild(o);
+    });
+
+    var tbl = $("tierTable");
+    PSU.tiers.forEach(function(t){
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        '<td><span class="dot" style="background:'+t.color+'"></span></td>'+
+        '<td>'+t.cond+'</td>'+
+        '<td class="tm">'+(t.mult===0?"0배":t.mult+"배")+'</td>';
+      tbl.appendChild(tr);
+    });
+  }
+
+  /* ── 렌더 ────────────────────────────────────────────────────────── */
+  function render(){
+    var c = compute(), tier = PSU.tiers[c.tIdx];
+
+    $("scnPrice").textContent = input.scenarioPrice.toLocaleString("ko-KR") + "원";
+    $("scnDelta").textContent = (c.appreciation>=0?"▲ ":"▼ ") + pct(Math.abs(c.appreciation));
+    $("scnDelta").style.color = tier.color;
+    $("scnRef").innerHTML = "현재 기준주가 <b>" + krw(basePrice) +
+      "</b> 기준 · 슬라이더로 만기 시점 주가를 가정해 보세요";
+
+    $("apprVal").textContent  = (c.appreciation>=0?"+":"−") + pct(Math.abs(c.appreciation));
+    $("apprVal").style.color  = tier.color;
+    $("tierPill").textContent = tier.name;
+    $("tierPill").style.background = tier.color;
+    $("formula").innerHTML =
+      '약정 <b>'+c.grant+'주</b> × <b>'+c.mult+'배</b> = 지급 <b>'+
+      c.shares.toLocaleString("ko-KR")+'주</b>';
+
+    var segs = $("gaugeTrack").getElementsByClassName("gs");
+    for (var i=0;i<segs.length;i++) segs[i].className = "gs" + (i===c.tIdx?" act":"");
+    var pos = Math.min(Math.max(c.appreciation,0),GAUGE_MAX)/GAUGE_MAX*100;
+    $("gaugeMark").style.left = "calc(" + pos + "% - 1px)";
+
+    $("shares").textContent      = c.shares.toLocaleString("ko-KR");
+    $("grantShares").textContent = c.grant;
+    $("clLabel").textContent     = input.clGrade;
+    $("gross").innerHTML         = krw(c.gross) + ' <small>(' + compact(c.gross) + ')</small>';
+
+    $("effRate").textContent = pct(c.effRate);
+    $("taxAmt").textContent  = compact(c.tax);
+    $("net").textContent     = compact(c.net);
+
+    $("annGross").textContent = compact(c.annGross);
+    $("annNet").textContent   = compact(c.annNet);
+    $("totGross").textContent = compact(c.gross);
+    $("totNet").textContent   = compact(c.net);
+  }
+
+  /* ── 이벤트 ──────────────────────────────────────────────────────── */
+  function bindEvents(){
+    $("clSeg").addEventListener("click", function(e){
+      var cl = e.target.getAttribute("data-cl");
+      if (!cl) return;
+      input.clGrade = cl;
+      var btns = this.getElementsByTagName("button");
+      for (var i=0;i<btns.length;i++)
+        btns[i].className = (btns[i].getAttribute("data-cl")===cl) ? "on" : "";
+      render();
+    });
+    $("scnRange").addEventListener("input", function(e){
+      input.scenarioPrice = parseInt(e.target.value,10);
+      render();
+    });
+    $("taxSel").addEventListener("change", function(e){
+      input.marginalRate = parseFloat(e.target.value);
+      render();
+    });
+    $("infoToggle").addEventListener("click", function(){
+      var open = $("infoCard").classList.toggle("hidden");
+      this.querySelector(".ar").textContent = open ? "[ + ]" : "[ − ]";
+    });
+    $("copyBtn").addEventListener("click", function(){
+      var btn = this;
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(location.href).then(function(){
+          btn.textContent = "복사됨 ✓";
+          setTimeout(function(){ btn.textContent = "링크 복사"; }, 1500);
+        });
+      } else { prompt("아래 주소를 복사하세요", location.href); }
+    });
+    $("shareBtn").addEventListener("click", function(){
+      var btn = this;
+      if (navigator.share){
+        navigator.share({ title:"삼성전자 PSU 보상 계산기", url:location.href }).catch(function(){});
+      } else {
+        btn.textContent = "공유 미지원";
+        setTimeout(function(){ btn.textContent = "공유하기"; }, 1500);
+      }
+    });
+  }
+
+  /* ── 시작: data.json 로드 후 초기화 ──────────────────────────────── */
+  function start(){
+    buildOnce();
+    bindEvents();
+    render();
+
+    fetch("./data.json", { cache:"no-store" })
+      .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+      .then(function(data){
+        market = data;
+        if (typeof data.basePrice === "number") basePrice = data.basePrice;
+        // 평가 주가 슬라이더를 현재 기준주가에 맞춤
+        input.scenarioPrice = Math.round(basePrice);
+        $("scnRange").value = input.scenarioPrice;
+        applyMarket();
+        render();
+      })
+      .catch(function(err){
+        // 로컬 file:// 실행 또는 네트워크 오류 — 슬라이더는 계속 동작
+        $("chartBox").innerHTML =
+          '<div class="chart-empty">data.json 을 불러오지 못했습니다.<br>'+
+          'GitHub Pages 등 웹 서버에서 열면 표시됩니다. ('+err.message+')</div>';
+        $("dataBadge").textContent = "데이터 없음";
+        applyMarket();
+      });
+  }
+
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", start);
+  } else { start(); }
+})();
+</script>
+</body>
+</html>
